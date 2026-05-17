@@ -49,4 +49,20 @@ namespace Orbital.API.DTOs
         public decimal Monto { get; set; }
         public string Motivo { get; set; } = null!;
     }
+
+    public class ClienteCreateAdminDto
+    {
+        public string Nombre { get; set; } = null!;
+        public string Tipo_Cliente { get; set; } = "Individuo";
+        public int? Id_Galaxia_Origen { get; set; }
+        public string Correo { get; set; } = null!;
+        public string Password { get; set; } = null!;
+        public decimal Credito_Disponible { get; set; } = 0;
+        public string Nivel_Confianza { get; set; } = "Nuevo";
+    }
+
+    public class ClienteDetalleDto : ClienteResponseDto
+    {
+        public List<TransaccionClienteDto> Compras { get; set; } = new();
+    }
 }

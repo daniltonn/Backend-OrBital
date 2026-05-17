@@ -3,11 +3,12 @@ using Orbital.API.DTOs;
 using Orbital.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Orbital.API.Authorization;
+using System.Security.Claims;
 
 namespace Orbital.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/Valoraciones")]
     public class ValoracionPlanetasController : ControllerBase
     {
         private readonly IValoracionService _service;
@@ -33,17 +34,26 @@ namespace Orbital.API.Controllers
         {
             try
             {
-                if (dto.Id_Planeta <= 0 || dto.Id_Analista <= 0)
+                if (dto.Id_Planeta <= 0)
                     return BadRequest(new
                     {
-                        message = "ID del planeta y analista deben ser válidos",
+                        message = "ID del planeta debe ser válido",
                         error = "Parámetros inválidos"
                     });
 
+                var analistaId = ObtenerIdUsuario();
+                if (analistaId <= 0)
+                    return Unauthorized(new { message = "No se pudo obtener el analista del token" });
+
                 var resultado = await _service.CalcularValorEstrategico(
                     dto.Id_Planeta,
-                    dto.Id_Analista,
-                    dto.Observaciones);
+                    analistaId,
+                    dto.Observaciones,
+                    dto.Recursos_Score,
+                    dto.Tecnologia_Score,
+                    dto.Ubicacion_Score,
+                    dto.Poder_Score,
+                    dto.Riesgo_Score);
 
                 return CreatedAtAction(
                     nameof(ObtenerValoracionPorId),
@@ -193,23 +203,20 @@ namespace Orbital.API.Controllers
         [HttpGet]
         public async Task<IActionResult> ObtenerTodas(
             [FromQuery] string? estado = null,
+            [FromQuery] int? idPlaneta = null,
             [FromQuery] int? planetaId = null,
             [FromQuery] int? analistaId = null)
         {
             try
             {
-                var valoraciones = await _service.ObtenerTodos(estado, planetaId, analistaId);
+                var filtroIdPlaneta = idPlaneta ?? planetaId;
+                var valoraciones = await _service.ObtenerTodos(estado, filtroIdPlaneta, analistaId);
 
                 return Ok(new
                 {
                     message = "Valoraciones obtenidas exitosamente",
                     cantidad = valoraciones.Count,
-                    filtros = new
-                    {
-                        estado = estado,
-                        planetaId = planetaId,
-                        analistaId = analistaId
-                    },
+                    filtros = new { estado, idPlaneta = filtroIdPlaneta, analistaId },
                     data = valoraciones
                 });
             }
@@ -232,50 +239,53 @@ namespace Orbital.API.Controllers
         /// </summary>
         [Authorize(Policy = Policies.ValoracionesApprove)]
         [HttpPatch("{id}/aprobar")]
-        public async Task<IActionResult> AprobarValoracion(int id, [FromBody] AprobarValoracionDto dto)
+        public async Task<IActionResult> AprobarRechazarValoracion(int id, [FromBody] AprobarRechazarValoracionDto dto)
         {
             try
             {
-                if (id <= 0 || dto.Id_Aprobador <= 0)
-                    return BadRequest(new { message = "ID de valoración y aprobador inválidos" });
+                if (id <= 0)
+                    return BadRequest(new { message = "ID de valoración inválido" });
 
-                var resultado = await _service.AprobarValoracion(id, dto.Id_Aprobador);
+                var aprobadorId = ObtenerIdUsuario();
+                if (aprobadorId <= 0)
+                    return Unauthorized(new { message = "No se pudo obtener el aprobador del token" });
 
-                if (resultado == null)
-                    return NotFound(new { message = "Valoración no encontrada" });
-
-                return Ok(new
+                if (dto.Aprobado)
                 {
-                    message = "Valoración aprobada exitosamente",
-                    data = resultado
-                });
+                    var resultado = await _service.AprobarValoracion(id, aprobadorId);
+                    if (resultado == null)
+                        return NotFound(new { message = "Valoración no encontrada" });
+
+                    return Ok(new { message = "Valoración aprobada exitosamente", data = resultado });
+                }
+                else
+                {
+                    var motivo = dto.Observaciones ?? "Sin motivo especificado";
+                    var rechazada = await _service.RechazarValoracion(id, motivo);
+                    if (!rechazada)
+                        return NotFound(new { message = "Valoración no encontrada" });
+
+                    return Ok(new
+                    {
+                        message = "Valoración rechazada exitosamente",
+                        data = new { Id_Valoracion = id, Estado = "Rechazada", Motivo = motivo }
+                    });
+                }
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Error de operación al aprobar valoración {Id}", id);
-                return BadRequest(new
-                {
-                    message = "No se puede aprobar",
-                    error = ex.Message
-                });
+                _logger.LogWarning(ex, "Error de operación al aprobar/rechazar valoración {Id}", id);
+                return BadRequest(new { message = ex.Message });
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "Error de validación al aprobar valoración {Id}", id);
-                return BadRequest(new
-                {
-                    message = "Error de validación",
-                    error = ex.Message
-                });
+                _logger.LogWarning(ex, "Error de validación al aprobar/rechazar valoración {Id}", id);
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al aprobar valoración {Id}", id);
-                return StatusCode(500, new
-                {
-                    message = "Error interno al aprobar valoración",
-                    error = ex.Message
-                });
+                _logger.LogError(ex, "Error al aprobar/rechazar valoración {Id}", id);
+                return StatusCode(500, new { message = "Error interno al procesar valoración", error = ex.Message });
             }
         }
 
@@ -327,14 +337,22 @@ namespace Orbital.API.Controllers
                 });
             }
         }
+
+        private int ObtenerIdUsuario()
+        {
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("sub") ?? "0";
+            return int.TryParse(idClaim, out var id) ? id : 0;
+        }
     }
 
     // =========================
     // DTOs AUXILIARES PARA ENDPOINTS
     // =========================
-    public class AprobarValoracionDto
+    public class AprobarRechazarValoracionDto
     {
-        public int Id_Aprobador { get; set; }
+        public bool Aprobado { get; set; }
+        public string? Observaciones { get; set; }
     }
 
     public class RechazarValoracionDto

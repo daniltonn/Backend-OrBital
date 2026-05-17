@@ -27,7 +27,12 @@ namespace Orbital.API.Services
         public async Task<ValoracionPlanetaResponseDto> CalcularValorEstrategico(
             int planetaId,
             int analistaId,
-            string? observaciones = null)
+            string? observaciones = null,
+            decimal? recursosScore = null,
+            decimal? tecnologiaScore = null,
+            decimal? ubicacionScore = null,
+            decimal? poderScore = null,
+            decimal? riesgoScore = null)
         {
             _logger.LogInformation($"Iniciando cálculo de valor estratégico para planeta {planetaId}");
 
@@ -52,26 +57,26 @@ namespace Orbital.API.Services
                 throw new ArgumentException($"El analista con ID {analistaId} no existe o está inactivo");
             }
 
-            // 3. Obtener recursos del planeta
+            // 3. Obtener recursos del planeta (solo si no se provee recursosScore manualmente)
             var recursos = await _context.RecursosPlaneta
                 .Where(r => r.Id_Planeta == planetaId)
                 .ToListAsync();
 
             _logger.LogInformation($"Planeta {planetaId} tiene {recursos.Count} recursos");
 
-            // 4. Calcular scores
-            var recursosScore = _calculador.CalcularRecursosScore(recursos);
-            var poderScore = _calculador.CalcularPoderScore(planeta.Nivel_Vida_Planeta);
-            var dificultadScore = _calculador.CalcularDificultadScore(poderScore);
-            var tecnologiaScore = _calculador.CalcularTecnologiaScore((int)planeta.Nivel_Tecnologico);
-            var ubicacionScore = _calculador.CalcularUbicacionScore();
-            var riesgoScore = _calculador.CalcularRiesgoScore(false); // MVP: sin amenazas
+            // 4. Calcular scores: usar los provistos o auto-calcular
+            var recursosScoreVal = recursosScore ?? _calculador.CalcularRecursosScore(recursos);
+            var poderScoreVal = poderScore ?? _calculador.CalcularPoderScore(planeta.Nivel_Vida_Planeta);
+            var dificultadScore = _calculador.CalcularDificultadScore(poderScoreVal);
+            var tecnologiaScoreVal = tecnologiaScore ?? _calculador.CalcularTecnologiaScore((int)planeta.Nivel_Tecnologico);
+            var ubicacionScoreVal = ubicacionScore ?? _calculador.CalcularUbicacionScore();
+            var riesgoScoreVal = riesgoScore ?? _calculador.CalcularRiesgoScore(false);
 
-            _logger.LogInformation($"Scores calculados - Recursos: {recursosScore}, Poder: {poderScore}, Tecnologia: {tecnologiaScore}");
+            _logger.LogInformation($"Scores calculados - Recursos: {recursosScoreVal}, Poder: {poderScoreVal}, Tecnologia: {tecnologiaScoreVal}");
 
             // 5. Calcular valor total
             var valorTotal = _calculador.CalcularValorTotal(
-                recursosScore, poderScore, tecnologiaScore, ubicacionScore, riesgoScore);
+                recursosScoreVal, poderScoreVal, tecnologiaScoreVal, ubicacionScoreVal, riesgoScoreVal);
 
             // 6. Clasificar planeta
             var clasePlaneta = _calculador.CalcularClasePlaneta(valorTotal);
@@ -85,11 +90,11 @@ namespace Orbital.API.Services
             var nuevaValoracion = new PlanetaValoracion
             {
                 Id_Planeta = planetaId,
-                Recursos_Score = recursosScore,
-                Tecnologia_Score = tecnologiaScore,
-                Ubicacion_Score = ubicacionScore,
-                Poder_Score = poderScore,
-                Riesgo_Score = riesgoScore,
+                Recursos_Score = recursosScoreVal,
+                Tecnologia_Score = tecnologiaScoreVal,
+                Ubicacion_Score = ubicacionScoreVal,
+                Poder_Score = poderScoreVal,
+                Riesgo_Score = riesgoScoreVal,
                 Valor_Total = valorTotal,
                 Clase_Planeta = clasePlaneta,
                 Precio_Final = precioFinal,

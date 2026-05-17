@@ -18,16 +18,22 @@ namespace Orbital.API.Services
         }
 
         public async Task<List<MercadoListItemDto>> ListarPlanetasEnVenta(
-            decimal? precioMin, decimal? precioMax, string? clase, int? galaxiaId)
+            decimal? precioMin, decimal? precioMax, string? clase, int? galaxiaId, bool? activo = null)
         {
             var ahora = DateTime.Now;
 
             var query = _context.MercadoPlanetas
-                .Where(m => m.Activo && (m.Fecha_Vencimiento == null || m.Fecha_Vencimiento > ahora))
                 .Include(m => m.Planeta)
                     .ThenInclude(p => p!.GalaxiaNav)
+                .Include(m => m.Planeta)
+                    .ThenInclude(p => p!.Estado)
                 .Include(m => m.Valoracion)
                 .AsQueryable();
+
+            if (activo.HasValue)
+                query = query.Where(m => m.Activo == activo.Value);
+            else
+                query = query.Where(m => m.Activo && (m.Fecha_Vencimiento == null || m.Fecha_Vencimiento > ahora));
 
             if (precioMin.HasValue)
                 query = query.Where(m => m.Precio_Publicado >= precioMin.Value);
@@ -51,8 +57,14 @@ namespace Orbital.API.Services
                 Id_Planeta = m.Id_Planeta,
                 Nombre_Planeta = m.Planeta?.Nombre ?? "Desconocido",
                 Galaxia = m.Planeta?.GalaxiaNav?.Nombre ?? "Desconocida",
+                Color1 = m.Planeta?.Color1,
+                Color2 = m.Planeta?.Color2,
+                Color3 = m.Planeta?.Color3,
+                Estado_Planeta = m.Planeta?.Estado?.Nombre ?? "Desconocido",
                 Precio_Publicado = m.Precio_Publicado,
                 Clase_Planeta = m.Valoracion?.Clase_Planeta ?? "D",
+                Valor_Total = m.Valoracion?.Valor_Total ?? 0,
+                Precio_Final_Valoracion = m.Valoracion?.Precio_Final ?? 0,
                 Descripcion_Venta = m.Descripcion_Venta,
                 Fecha_Vencimiento = m.Fecha_Vencimiento,
                 Fecha_Publicacion = m.Fecha_Publicacion
@@ -190,10 +202,14 @@ namespace Orbital.API.Services
 
             var valorAnterior = JsonSerializer.Serialize(new
             {
+                publicacion.Activo,
                 publicacion.Precio_Publicado,
                 publicacion.Descripcion_Venta,
                 publicacion.Fecha_Vencimiento
             });
+
+            if (dto.Activo.HasValue)
+                publicacion.Activo = dto.Activo.Value;
 
             if (dto.Precio_Publicado.HasValue)
                 publicacion.Precio_Publicado = dto.Precio_Publicado.Value;
@@ -250,6 +266,32 @@ namespace Orbital.API.Services
                 "mercado_planeta",
                 publicacion.Id_Publicacion,
                 "activo: true", "activo: false",
+                ipOrigen);
+        }
+
+        public async Task EliminarPublicacion(int id, int idUsuario, string ipOrigen)
+        {
+            var publicacion = await _context.MercadoPlanetas
+                .Include(m => m.Planeta)
+                .FirstOrDefaultAsync(m => m.Id_Publicacion == id && m.Activo);
+
+            if (publicacion == null)
+                throw new KeyNotFoundException("Publicación no encontrada o ya está inactiva");
+
+            publicacion.Activo = false;
+            _context.MercadoPlanetas.Update(publicacion);
+
+            if (publicacion.Planeta != null)
+            {
+                publicacion.Planeta.Id_Estado = 1;
+                _context.Planetas.Update(publicacion.Planeta);
+            }
+
+            await _context.SaveChangesAsync();
+
+            await RegistrarAuditoria(
+                idUsuario, "ELIMINAR_PUBLICACION", "mercado_planeta",
+                publicacion.Id_Publicacion, "activo: true", "activo: false",
                 ipOrigen);
         }
 
