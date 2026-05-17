@@ -23,6 +23,8 @@ namespace Orbital.API.Data
         public DbSet<PlanetaEstado> PlanetaEstados { get; set; }
         public DbSet<PlanetaValoracion> PlanetaValoraciones { get; set; }
         public DbSet<MiembroEquipo> MiembrosEquipo { get; set; }
+        public DbSet<Equipo> Equipos { get; set; }
+        public DbSet<EstadoMision> EstadosMision { get; set; }
         public DbSet<Recurso> Recursos { get; set; }
         public DbSet<RecursoPlaneta> RecursosPlaneta { get; set; }
         public DbSet<Mision> Misiones { get; set; }
@@ -50,6 +52,8 @@ namespace Orbital.API.Data
             modelBuilder.Entity<PlanetaEstado>().ToTable("estado_planeta");
             modelBuilder.Entity<PlanetaValoracion>().ToTable("planeta_valoracion");
             modelBuilder.Entity<MiembroEquipo>().ToTable("miembro_equipo");
+            modelBuilder.Entity<Equipo>().ToTable("equipo");
+            modelBuilder.Entity<EstadoMision>().ToTable("estado_mision");
             modelBuilder.Entity<Recurso>().ToTable("recurso");
 
             // =========================
@@ -180,10 +184,16 @@ namespace Orbital.API.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<MiembroEquipo>()
-            .HasOne(m => m.Usuario)
-            .WithMany()
-            .HasForeignKey(m => m.Id_Usuario)
-            .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(m => m.Usuario)
+                .WithMany()
+                .HasForeignKey(m => m.Id_Usuario)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Equipo>()
+                .HasKey(e => e.Id_Equipo);
+
+            modelBuilder.Entity<EstadoMision>()
+                .HasKey(e => e.Id_Estado_Mision);
             // =========================
             // RELACIONES - Planeta → Galaxia
             // =========================

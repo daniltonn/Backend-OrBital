@@ -107,6 +107,7 @@ DTOs/
  RolDto.cs
  TransaccionListItemDto.cs
  UsuarioCreateDto.cs
+ UsuarioDetalleDto.cs
  UsuarioLoginDto.cs
  UsuarioResponseDto.cs
  UsuarioUpdateDto.cs
@@ -124,6 +125,8 @@ Models/
  Auditoria.cs
  Cliente.cs
  CoordenadasPlaneta.cs
+ Equipo.cs
+ EstadoMision.cs
  EstadoPlaneta.cs
  Galaxia.cs
  HistoricoCicloPlanetario.cs

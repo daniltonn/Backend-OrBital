@@ -11,8 +11,9 @@ namespace Orbital.API.Services
             int? jerarquiaId, string? letra,
             int? nivelPoderMin, int? nivelPoderMax,
             string? ordenarPor, bool desc);
-        Task<Dictionary<string, List<UsuarioResponseDto>>> ObtenerUltimos3UsuariosPorRol();
+        Task<List<UsuarioResponseDto>> ObtenerUltimos3PorRol(int idRol);
         Task<UsuarioResponseDto?> GetUsuarioById(int id);
+        Task<UsuarioDetalleDto?> ObtenerDetalleUsuario(int id);
         Task UpdateUsuario(int id, UsuarioUpdateDto dto);
     }
 }
