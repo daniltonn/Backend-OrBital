@@ -9,9 +9,14 @@ namespace Orbital.API.Services
         /// RF-3.4.2.4 y RF-3.4.2.5
         /// </summary>
         Task<ValoracionPlanetaResponseDto> CalcularValorEstrategico(
-            int planetaId, 
-            int analistaId, 
-            string? observaciones = null);
+            int planetaId,
+            int analistaId,
+            string? observaciones = null,
+            decimal? recursosScore = null,
+            decimal? tecnologiaScore = null,
+            decimal? ubicacionScore = null,
+            decimal? poderScore = null,
+            decimal? riesgoScore = null);
 
         /// <summary>
         /// Obtiene todas las valoraciones de un planeta específico

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\USUARIO\\\\Desktop\\\\Ingenieria de Software\\\\Proyectos\\\\Orbiral\\\\Mispruebas\\\\Backend-OrBital\\\\Orbital.API\\\\DTOs\")",
+      "Bash(Select-Object Name)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root orbital_bd -e \"SELECT correo, LEFT\\(contrasena_hash, 10\\) as hash_prefix, LENGTH\\(contrasena_hash\\) as hash_len FROM usuario LIMIT 5;\" 2>&1)"
+    ]
+  }
+}

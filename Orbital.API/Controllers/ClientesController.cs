@@ -21,7 +21,36 @@ namespace Orbital.API.Controllers
         }
 
         // =========================
-        // GET - PERFIL DE CLIENTE
+        // GET - LISTAR CLIENTES (administrador)
+        // =========================
+        [Authorize(Policy = Policies.ClientesAdministrar)]
+        [HttpGet]
+        public async Task<IActionResult> Listar(
+            [FromQuery] string? tipo,
+            [FromQuery] string? nivelConfianza,
+            [FromQuery] bool? activo)
+        {
+            try
+            {
+                var clientes = await _service.Listar(tipo, nivelConfianza, activo);
+
+                return Ok(new
+                {
+                    message = "Clientes obtenidos exitosamente",
+                    cantidad = clientes.Count,
+                    filtros = new { tipo, nivelConfianza, activo },
+                    data = clientes
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar clientes");
+                return StatusCode(500, new { message = "Error interno al listar clientes", error = ex.Message });
+            }
+        }
+
+        // =========================
+        // GET - PERFIL DE CLIENTE CON COMPRAS
         // =========================
         [Authorize]
         [HttpGet("{id}")]
@@ -32,7 +61,6 @@ namespace Orbital.API.Controllers
                 if (id <= 0)
                     return BadRequest(new { message = "ID de cliente inválido" });
 
-                // Un cliente solo puede ver su propio perfil
                 var esCliente = User.FindFirstValue("tipo") == "cliente";
                 if (esCliente)
                 {
@@ -41,7 +69,7 @@ namespace Orbital.API.Controllers
                         return Forbid();
                 }
 
-                var perfil = await _service.ObtenerPorId(id);
+                var perfil = await _service.ObtenerDetalleConCompras(id);
 
                 if (perfil == null)
                     return NotFound(new { message = "Cliente no encontrado" });
@@ -56,6 +84,76 @@ namespace Orbital.API.Controllers
             {
                 _logger.LogError(ex, "Error al obtener perfil del cliente {Id}", id);
                 return StatusCode(500, new { message = "Error interno al obtener perfil", error = ex.Message });
+            }
+        }
+
+        // =========================
+        // POST - CREAR CLIENTE (administrador)
+        // =========================
+        [Authorize(Policy = Policies.ClientesAdministrar)]
+        [HttpPost]
+        public async Task<IActionResult> Crear([FromBody] ClienteCreateAdminDto dto)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.Nombre))
+                    return BadRequest(new { message = "El nombre es requerido" });
+
+                if (string.IsNullOrWhiteSpace(dto.Correo))
+                    return BadRequest(new { message = "El correo es requerido" });
+
+                if (string.IsNullOrWhiteSpace(dto.Password))
+                    return BadRequest(new { message = "La contraseña es requerida" });
+
+                var resultado = await _service.Crear(dto);
+
+                return Ok(new
+                {
+                    message = "Cliente creado exitosamente",
+                    data = resultado
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear cliente");
+                return StatusCode(500, new { message = "Error interno al crear cliente", error = ex.Message });
+            }
+        }
+
+        // =========================
+        // PATCH - EDITAR CLIENTE PARCIALMENTE (administrador)
+        // =========================
+        [Authorize(Policy = Policies.ClientesAdministrar)]
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> EditarParcial(int id, [FromBody] ClienteUpdateDto dto)
+        {
+            try
+            {
+                if (id <= 0)
+                    return BadRequest(new { message = "ID de cliente inválido" });
+
+                var idUsuario = ObtenerIdUsuarioInterno();
+                var ip = ObtenerIp();
+                var resultado = await _service.Actualizar(id, dto, idUsuario, ip);
+
+                return Ok(new
+                {
+                    message = "Datos del cliente actualizados exitosamente",
+                    data = resultado
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al editar cliente {Id}", id);
+                return StatusCode(500, new { message = "Error interno al editar cliente", error = ex.Message });
             }
         }
 

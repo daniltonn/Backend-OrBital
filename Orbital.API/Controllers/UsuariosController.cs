@@ -19,19 +19,73 @@ namespace Orbital.API.Controllers
 
         [Authorize(Policy = Policies.UsuariosRead)]
         [HttpGet]
-        public async Task<IActionResult> GetUsuarios()
+        public async Task<IActionResult> GetUsuarios(
+            [FromQuery] string? nombre,
+            [FromQuery] bool? activo,
+            [FromQuery] DateTime? fechaDesde,
+            [FromQuery] DateTime? fechaHasta,
+            [FromQuery] int? jerarquiaId,
+            [FromQuery] string? letra,
+            [FromQuery] int? nivelPoderMin,
+            [FromQuery] int? nivelPoderMax,
+            [FromQuery] string? ordenarPor,
+            [FromQuery] bool desc = false)
         {
-            var usuarios = await _service.GetUsuarios();
-            return Ok(usuarios);
+            var usuarios = await _service.ListarUsuarios(
+                nombre, activo, fechaDesde, fechaHasta,
+                jerarquiaId, letra, nivelPoderMin, nivelPoderMax,
+                ordenarPor, desc);
+
+            return Ok(new
+            {
+                message = "Usuarios obtenidos exitosamente",
+                cantidad = usuarios.Count,
+                filtros = new { nombre, activo, fechaDesde, fechaHasta, jerarquiaId, letra, nivelPoderMin, nivelPoderMax, ordenarPor, desc },
+                data = usuarios
+            });
         }
 
         [Authorize(Policy = Policies.UsuariosRead)]
-        [HttpGet("/ultimos")]
-        public async Task<IActionResult> ObtenerUltimos3UsuariosPorRol()
+        [HttpGet("ultimos")]
+        public async Task<IActionResult> ObtenerUltimos3PorRol([FromQuery] int idRol)
         {
-            var result = await _service.ObtenerUltimos3UsuariosPorRol();
-            return Ok(result);
+            if (idRol <= 0)
+                return BadRequest(new { message = "El parámetro idRol es requerido y debe ser mayor a 0" });
+
+            var result = await _service.ObtenerUltimos3PorRol(idRol);
+
+            return Ok(new
+            {
+                message = $"Últimos 3 usuarios del rol {idRol}",
+                cantidad = result.Count,
+                data = result
+            });
         }
+        [Authorize(Policy = Policies.UsuariosRead)]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetDetalle(int id)
+        {
+            try
+            {
+                if (id <= 0)
+                    return BadRequest(new { message = "ID de usuario inválido" });
+
+                var detalle = await _service.ObtenerDetalleUsuario(id);
+                if (detalle == null)
+                    return NotFound(new { message = "Usuario no encontrado" });
+
+                return Ok(new
+                {
+                    message = "Información del usuario obtenida exitosamente",
+                    data = detalle
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error interno al obtener detalle del usuario", error = ex.Message });
+            }
+        }
+
         [HttpPatch("{id}")]
         public async Task<IActionResult> PatchUsuario(int id, [FromBody] UsuarioUpdateDto dto)
         {

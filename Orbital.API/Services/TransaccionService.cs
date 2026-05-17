@@ -245,7 +245,7 @@ namespace Orbital.API.Services
         }
 
         public async Task<List<TransaccionListItemDto>> ListarTransacciones(
-            string? estado, DateTime? fechaInicio, DateTime? fechaFin, int? idComprador)
+            string? estado, DateTime? fechaInicio, DateTime? fechaFin, int? idComprador, int? idPublicacion = null)
         {
             var query = (
                 from t in _context.Transacciones
@@ -270,6 +270,9 @@ namespace Orbital.API.Services
 
             if (idComprador.HasValue)
                 query = query.Where(x => x.Transaccion.Id_Comprador == idComprador.Value);
+
+            if (idPublicacion.HasValue)
+                query = query.Where(x => x.Transaccion.Id_Publicacion == idPublicacion.Value);
 
             var resultados = await query
                 .OrderByDescending(x => x.Transaccion.Fecha_Transaccion)

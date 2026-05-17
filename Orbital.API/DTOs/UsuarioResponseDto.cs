@@ -13,5 +13,9 @@ namespace Orbital.API.DTOs
         public string Jerarquia { get; set; } = string.Empty;
 
         public bool Activo { get; set; }
+
+        public DateTime Fecha_Registro { get; set; }
+
+        public int? Nivel_Poder { get; set; }
     }
 }

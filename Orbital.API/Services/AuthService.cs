@@ -28,7 +28,17 @@ namespace Orbital.API.Services
             if (usuario == null)
                 return null;
 
-            if (!BCrypt.Net.BCrypt.Verify(dto.Password, usuario.Contrasena_Hash))
+            bool passwordValida;
+            try
+            {
+                passwordValida = BCrypt.Net.BCrypt.Verify(dto.Password, usuario.Contrasena_Hash);
+            }
+            catch (BCrypt.Net.SaltParseException)
+            {
+                return null;
+            }
+
+            if (!passwordValida)
                 return null;
 
             var Key = GenerateJwtToken(usuario);
