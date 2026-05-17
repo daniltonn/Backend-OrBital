@@ -59,10 +59,43 @@ namespace Orbital.API.Services
 
             // 3. Obtener recursos del planeta (solo si no se provee recursosScore manualmente)
             var recursos = await _context.RecursosPlaneta
+                .Include(r => r.Recurso)
+                .AsNoTracking()
                 .Where(r => r.Id_Planeta == planetaId)
                 .ToListAsync();
 
             _logger.LogInformation($"Planeta {planetaId} tiene {recursos.Count} recursos");
+            
+            foreach (var r in recursos)
+{
+    decimal baseVal =
+        Math.Max(r.Cantidad_Estimada, 0) *
+        Math.Max(r.Valor_Unitario, 0);
+
+
+
+
+    _logger.LogInformation(
+        $"[RECURSO TRACE] " +
+        $"ID:{r.Id_Recurso} | " +
+        $"Nombre:{r.Recurso?.Nombre} | " +
+        $"Cant:{r.Cantidad_Estimada} | " +
+        $"Unit:{r.Valor_Unitario} | " +
+        $"Rareza:{r.Recurso?.Rareza} | " +
+        $"Extraible:{r.Extraible} | " +
+        $"Base:{baseVal} | "
+    );
+}
+
+            var poblacion = planeta.Poblacion ?? 0;
+
+            _logger.LogInformation(
+                $"Datos planeta -> " +
+                    $"Poblacion: {planeta.Poblacion}, " +
+                    $"Tecnologia: {planeta.Nivel_Tecnologico}, " +
+                    $"NivelVida: {planeta.Nivel_Vida_Planeta}, " +
+                    $"Galaxia: {planeta.Id_Galaxia}"
+            );  
 
             // 4. Calcular scores: usar los provistos o auto-calcular
             var recursosScoreVal = recursosScore ?? _calculador.CalcularRecursosScore(recursos);
@@ -82,7 +115,7 @@ namespace Orbital.API.Services
             var clasePlaneta = _calculador.CalcularClasePlaneta(valorTotal);
 
             // 7. Calcular precio final
-            var precioFinal = _calculador.CalcularPrecioFinal(valorTotal);
+            var precioFinal = _calculador.CalcularPrecioFinal(valorTotal, poblacion, (int)planeta.Nivel_Tecnologico);
 
             _logger.LogInformation($"Valoración calculada - Total: {valorTotal}, Clase: {clasePlaneta}, Precio: {precioFinal}");
 
@@ -169,31 +202,31 @@ namespace Orbital.API.Services
                 {
                     Nombre = "Recursos",
                     Valor = valoracion.Recursos_Score,
-                    Descripcion = $"Valor de recursos extraíbles disponibles (score: {valoracion.Recursos_Score}/5)"
+                    Descripcion = $"Valor de recursos extraíbles disponibles (score: {valoracion.Recursos_Score}/10)"
                 },
                 Tecnologia = new ScoreDetalleDto
                 {
                     Nombre = "Tecnología",
                     Valor = valoracion.Tecnologia_Score,
-                    Descripcion = $"Nivel tecnológico del planeta (score: {valoracion.Tecnologia_Score}/5)"
+                    Descripcion = $"Nivel tecnológico del planeta (score: {valoracion.Tecnologia_Score}/10)"
                 },
                 Ubicacion = new ScoreDetalleDto
                 {
                     Nombre = "Ubicación",
                     Valor = valoracion.Ubicacion_Score,
-                    Descripcion = $"Importancia estratégica de la ubicación (score: {valoracion.Ubicacion_Score}/5)"
+                    Descripcion = $"Importancia estratégica de la ubicación (score: {valoracion.Ubicacion_Score}/10)"
                 },
                 Poder = new ScoreDetalleDto
                 {
                     Nombre = "Poder Nativo",
                     Valor = valoracion.Poder_Score,
-                    Descripcion = $"Nivel de poder de civilizaciones nativas (score: {valoracion.Poder_Score}/5)"
+                    Descripcion = $"Nivel de poder de civilizaciones nativas (score: {valoracion.Poder_Score}/10)"
                 },
                 Riesgo = new ScoreDetalleDto
                 {
                     Nombre = "Riesgo",
                     Valor = valoracion.Riesgo_Score,
-                    Descripcion = $"Amenazas y riesgos detectados (score: {valoracion.Riesgo_Score}/5)"
+                    Descripcion = $"Amenazas y riesgos detectados (score: {valoracion.Riesgo_Score}/10)"
                 },
                 Valor_Total = valoracion.Valor_Total,
                 Clase_Planeta = valoracion.Clase_Planeta,
