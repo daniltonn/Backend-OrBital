@@ -70,6 +70,8 @@ builder.Services.AddScoped<PlanetaEstadoService>();
 builder.Services.AddScoped<IValoracionService, ValoracionService>();
 builder.Services.AddScoped<IRecursoService, RecursoService>();
 builder.Services.AddScoped<IRecursoPlanetarioService, RecursoPlanetarioService>();
+builder.Services.AddScoped<GalaxiaService>();
+builder.Services.AddScoped<AtmosferaService>();
 // Mercado Interestelar
 builder.Services.AddScoped<IMercadoService, MercadoService>();
 builder.Services.AddScoped<ITransaccionService, TransaccionService>();

@@ -100,10 +100,9 @@ namespace Orbital.API.Services
             // 4. Calcular scores: usar los provistos o auto-calcular
             var recursosScoreVal = recursosScore ?? _calculador.CalcularRecursosScore(recursos);
             var poderScoreVal = poderScore ?? _calculador.CalcularPoderScore(planeta.Nivel_Vida_Planeta);
-            var dificultadScore = _calculador.CalcularDificultadScore(poderScoreVal);
             var tecnologiaScoreVal = tecnologiaScore ?? _calculador.CalcularTecnologiaScore((int)planeta.Nivel_Tecnologico);
-            var ubicacionScoreVal = ubicacionScore ?? _calculador.CalcularUbicacionScore();
-            var riesgoScoreVal = riesgoScore ?? _calculador.CalcularRiesgoScore(false);
+            var ubicacionScoreVal = ubicacionScore ?? _calculador.CalcularUbicacionScore(planeta.Id_Galaxia);
+            var riesgoScoreVal = riesgoScore ?? _calculador.CalcularRiesgoScore(poblacion, (int)planeta.Nivel_Tecnologico);
 
             _logger.LogInformation($"Scores calculados - Recursos: {recursosScoreVal}, Poder: {poderScoreVal}, Tecnologia: {tecnologiaScoreVal}");
 
@@ -244,9 +243,31 @@ namespace Orbital.API.Services
             int? analistaId = null)
         {
             var query = _context.PlanetaValoraciones
-                .Include(v => v.Planeta)
-                .Include(v => v.Analista)
-                .Include(v => v.AprobadoPor)
+                .Select(v => new
+                {
+                    v.Id_Valoracion,
+                    v.Id_Planeta,
+                    v.Recursos_Score,
+                    v.Tecnologia_Score,
+                    v.Ubicacion_Score,
+                    v.Poder_Score,
+                    v.Riesgo_Score,
+                    v.Valor_Total,
+                    v.Clase_Planeta,
+                    v.Precio_Final,
+                    v.Id_Analista,
+                    AnalistaNombre = v.Analista != null ? v.Analista.Nombre : "Desconocido",
+                    v.Fecha_Valoracion,
+                    v.Aprobado_Por,
+                    AprobadoPorNombre = v.AprobadoPor != null ? v.AprobadoPor.Nombre : null,
+                    v.Fecha_Aprobacion,
+                    v.Estado_Valoracion,
+                    v.Observaciones,
+                    PlanetaNombre = v.Planeta != null ? v.Planeta.Nombre : "Desconocido",
+                    PlanetaColor1 = v.Planeta != null ? v.Planeta.Color1 : null,
+                    PlanetaColor2 = v.Planeta != null ? v.Planeta.Color2 : null,
+                    PlanetaColor3 = v.Planeta != null ? v.Planeta.Color3 : null
+                })
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(estado))
@@ -258,11 +279,36 @@ namespace Orbital.API.Services
             if (analistaId.HasValue)
                 query = query.Where(v => v.Id_Analista == analistaId.Value);
 
-            var valoraciones = await query
+            var resultados = await query
                 .OrderByDescending(v => v.Fecha_Valoracion)
                 .ToListAsync();
 
-            return valoraciones.Select(v => MapearAResponseDto(v, v.Planeta, v.Analista, v.AprobadoPor)).ToList();
+            return resultados.Select(v => new ValoracionPlanetaResponseDto
+            {
+                Id_Valoracion = v.Id_Valoracion,
+                Id_Planeta = v.Id_Planeta,
+                Clase_Planeta = v.Clase_Planeta,
+                Valor_Total = v.Valor_Total,
+                Precio_Final = v.Precio_Final,
+                Recursos_Score = v.Recursos_Score,
+                Tecnologia_Score = v.Tecnologia_Score,
+                Ubicacion_Score = v.Ubicacion_Score,
+                Poder_Score = v.Poder_Score,
+                Riesgo_Score = v.Riesgo_Score,
+                Estado_Valoracion = v.Estado_Valoracion,
+                Analista = v.AnalistaNombre,
+                Aprobado_Por = v.AprobadoPorNombre,
+                Fecha_Valoracion = v.Fecha_Valoracion,
+                Fecha_Aprobacion = v.Fecha_Aprobacion,
+                Observaciones = v.Observaciones,
+                Planeta = new PlanetaResumenValoracionDto
+                {
+                    Nombre = v.PlanetaNombre,
+                    Color1 = v.PlanetaColor1,
+                    Color2 = v.PlanetaColor2,
+                    Color3 = v.PlanetaColor3
+                }
+            }).ToList();
         }
 
         /// <summary>
@@ -354,23 +400,27 @@ namespace Orbital.API.Services
             {
                 Id_Valoracion = valoracion.Id_Valoracion,
                 Id_Planeta = valoracion.Id_Planeta,
-                Nombre_Planeta = planeta?.Nombre ?? "Desconocido",
+                Clase_Planeta = valoracion.Clase_Planeta,
+                Valor_Total = valoracion.Valor_Total,
+                Precio_Final = valoracion.Precio_Final,
                 Recursos_Score = valoracion.Recursos_Score,
                 Tecnologia_Score = valoracion.Tecnologia_Score,
                 Ubicacion_Score = valoracion.Ubicacion_Score,
                 Poder_Score = valoracion.Poder_Score,
                 Riesgo_Score = valoracion.Riesgo_Score,
-                Valor_Total = valoracion.Valor_Total,
-                Clase_Planeta = valoracion.Clase_Planeta,
-                Precio_Final = valoracion.Precio_Final,
-                Id_Analista = valoracion.Id_Analista,
-                Nombre_Analista = analista?.Nombre ?? "Desconocido",
-                Fecha_Valoracion = valoracion.Fecha_Valoracion,
-                Aprobado_Por = valoracion.Aprobado_Por,
-                Nombre_Aprobador = aprobador?.Nombre,
-                Fecha_Aprobacion = valoracion.Fecha_Aprobacion,
                 Estado_Valoracion = valoracion.Estado_Valoracion,
-                Observaciones = valoracion.Observaciones
+                Analista = analista?.Nombre ?? "Desconocido",
+                Aprobado_Por = aprobador?.Nombre,
+                Fecha_Valoracion = valoracion.Fecha_Valoracion,
+                Fecha_Aprobacion = valoracion.Fecha_Aprobacion,
+                Observaciones = valoracion.Observaciones,
+                Planeta = new PlanetaResumenValoracionDto
+                {
+                    Nombre = planeta?.Nombre ?? "Desconocido",
+                    Color1 = planeta?.Color1,
+                    Color2 = planeta?.Color2,
+                    Color3 = planeta?.Color3
+                }
             };
         }
     }
