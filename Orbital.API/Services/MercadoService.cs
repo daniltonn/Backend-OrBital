@@ -24,9 +24,9 @@ namespace Orbital.API.Services
 
             var query = _context.MercadoPlanetas
                 .Include(m => m.Planeta)
-                    .ThenInclude(p => p!.GalaxiaNav)
-                .Include(m => m.Planeta)
                     .ThenInclude(p => p!.Estado)
+                .Include(m => m.Planeta)
+                    .ThenInclude(p => p!.AtmosferaNav)
                 .Include(m => m.Valoracion)
                 .AsQueryable();
 
@@ -54,26 +54,33 @@ namespace Orbital.API.Services
             return publicaciones.Select(m => new MercadoListItemDto
             {
                 Id_Publicacion = m.Id_Publicacion,
-                Id_Planeta = m.Id_Planeta,
-                Nombre_Planeta = m.Planeta?.Nombre ?? "Desconocido",
-                Galaxia = m.Planeta?.GalaxiaNav?.Nombre ?? "Desconocida",
-                Color1 = m.Planeta?.Color1,
-                Color2 = m.Planeta?.Color2,
-                Color3 = m.Planeta?.Color3,
-                Estado_Planeta = m.Planeta?.Estado?.Nombre ?? "Desconocido",
-                Precio_Publicado = m.Precio_Publicado,
                 Clase_Planeta = m.Valoracion?.Clase_Planeta ?? "D",
                 Valor_Total = m.Valoracion?.Valor_Total ?? 0,
-                Precio_Final_Valoracion = m.Valoracion?.Precio_Final ?? 0,
-                Descripcion_Venta = m.Descripcion_Venta,
+                Precio_Publicado = m.Precio_Publicado,
+                Precio_Minimo = m.Precio_Minimo,
                 Fecha_Vencimiento = m.Fecha_Vencimiento,
-                Fecha_Publicacion = m.Fecha_Publicacion
+                Fecha_Publicacion = m.Fecha_Publicacion,
+                Descripcion_Venta = m.Descripcion_Venta,
+                Activo = m.Activo,
+                Planeta = new PlanetaResumenMercadoDto
+                {
+                    Id_Planeta = m.Id_Planeta,
+                    Nombre = m.Planeta?.Nombre ?? "Desconocido",
+                    Color1 = m.Planeta?.Color1,
+                    Color2 = m.Planeta?.Color2,
+                    Color3 = m.Planeta?.Color3,
+                    Estado = m.Planeta?.Estado?.Nombre ?? "Desconocido",
+                    TipoAtmosfera = m.Planeta?.AtmosferaNav?.Nombre,
+                    NivelTecnologico = m.Planeta?.Nivel_Tecnologico.ToString() ?? "Desconocido"
+                }
             }).ToList();
         }
 
         public async Task<MercadoDetalleDto?> ObtenerDetalle(int id)
         {
             var publicacion = await _context.MercadoPlanetas
+                .Include(m => m.Planeta)
+                    .ThenInclude(p => p!.Estado)
                 .Include(m => m.Planeta)
                     .ThenInclude(p => p!.AtmosferaNav)
                 .Include(m => m.Planeta)
@@ -90,41 +97,55 @@ namespace Orbital.API.Services
             return new MercadoDetalleDto
             {
                 Id_Publicacion = publicacion.Id_Publicacion,
-                Id_Planeta = publicacion.Id_Planeta,
-                Nombre_Planeta = publicacion.Planeta?.Nombre ?? "Desconocido",
-                Descripcion_Planeta = publicacion.Planeta?.Descripcion,
-                Descripcion_Venta = publicacion.Descripcion_Venta,
-                Precio_Publicado = publicacion.Precio_Publicado,
-                Fecha_Vencimiento = publicacion.Fecha_Vencimiento,
-                Fecha_Publicacion = publicacion.Fecha_Publicacion,
-                Recursos_Score = publicacion.Valoracion?.Recursos_Score ?? 0,
-                Tecnologia_Score = publicacion.Valoracion?.Tecnologia_Score ?? 0,
-                Ubicacion_Score = publicacion.Valoracion?.Ubicacion_Score ?? 0,
-                Poder_Score = publicacion.Valoracion?.Poder_Score ?? 0,
-                Riesgo_Score = publicacion.Valoracion?.Riesgo_Score ?? 0,
                 Clase_Planeta = publicacion.Valoracion?.Clase_Planeta ?? "D",
-                Recursos = publicacion.Planeta?.Recursos
-                    .Select(r => new RecursoPlanetaMercadoDto
-                    {
-                        Nombre_Recurso = r.Recurso?.Nombre ?? "Desconocido",
-                        Cantidad_Estimada = r.Cantidad_Estimada,
-                        Rareza = r.Recurso?.Rareza ?? "Común"
-                    }).ToList() ?? new(),
-                Coordenadas = publicacion.Planeta?.Coordenadas == null ? null : new CoordenadasMercadoDto
+                Precio_Publicado = publicacion.Precio_Publicado,
+                Precio_Minimo = publicacion.Precio_Minimo,
+                Fecha_Vencimiento = publicacion.Fecha_Vencimiento,
+                Descripcion_Venta = publicacion.Descripcion_Venta,
+                Planeta = new PlanetaDetalleMercadoDto
                 {
-                    Coordenada_X = publicacion.Planeta.Coordenadas.Coordenada_X,
-                    Coordenada_Y = publicacion.Planeta.Coordenadas.Coordenada_Y,
-                    Coordenada_Z = publicacion.Planeta.Coordenadas.Coordenada_Z
+                    Id_Planeta = publicacion.Id_Planeta,
+                    Nombre = publicacion.Planeta?.Nombre ?? "Desconocido",
+                    Descripcion = publicacion.Planeta?.Descripcion,
+                    Color1 = publicacion.Planeta?.Color1,
+                    Color2 = publicacion.Planeta?.Color2,
+                    Color3 = publicacion.Planeta?.Color3,
+                    Estado = publicacion.Planeta?.Estado?.Nombre ?? "Desconocido",
+                    TipoAtmosfera = publicacion.Planeta?.AtmosferaNav?.Nombre,
+                    DescripcionAtmosfera = publicacion.Planeta?.AtmosferaNav?.Descripcion,
+                    NivelTecnologico = publicacion.Planeta?.Nivel_Tecnologico.ToString() ?? "Desconocido",
+                    Recursos = publicacion.Planeta?.Recursos
+                        .Select(r => new RecursoPlanetaMercadoDto
+                        {
+                            Nombre_Recurso = r.Recurso?.Nombre ?? "Desconocido",
+                            Cantidad_Estimada = r.Cantidad_Estimada,
+                            Rareza = r.Recurso?.Rareza ?? "Común"
+                        }).ToList() ?? new(),
+                    Coordenadas = publicacion.Planeta?.Coordenadas == null ? null : new CoordenadasMercadoDto
+                    {
+                        Coordenada_X = publicacion.Planeta.Coordenadas.Coordenada_X,
+                        Coordenada_Y = publicacion.Planeta.Coordenadas.Coordenada_Y,
+                        Coordenada_Z = publicacion.Planeta.Coordenadas.Coordenada_Z
+                    }
                 },
-                Tipo_Atmosfera = publicacion.Planeta?.AtmosferaNav?.Nombre,
-                Descripcion_Atmosfera = publicacion.Planeta?.AtmosferaNav?.Descripcion
+                Valoracion = new ValoracionMercadoDto
+                {
+                    Recursos_Score = publicacion.Valoracion?.Recursos_Score ?? 0,
+                    Tecnologia_Score = publicacion.Valoracion?.Tecnologia_Score ?? 0,
+                    Ubicacion_Score = publicacion.Valoracion?.Ubicacion_Score ?? 0,
+                    Poder_Score = publicacion.Valoracion?.Poder_Score ?? 0,
+                    Riesgo_Score = publicacion.Valoracion?.Riesgo_Score ?? 0,
+                    Valor_Total = publicacion.Valoracion?.Valor_Total ?? 0,
+                    Precio_Final = publicacion.Valoracion?.Precio_Final ?? 0
+                }
             };
         }
 
         public async Task<MercadoListItemDto> PublicarPlaneta(PublicarPlanetaDto dto, int idUsuario, string ipOrigen)
         {
             var planeta = await _context.Planetas
-                .Include(p => p.GalaxiaNav)
+                .Include(p => p.Estado)
+                .Include(p => p.AtmosferaNav)
                 .FirstOrDefaultAsync(p => p.Id_Planeta == dto.Id_Planeta && p.Activo);
 
             if (planeta == null)
@@ -178,14 +199,25 @@ namespace Orbital.API.Services
             return new MercadoListItemDto
             {
                 Id_Publicacion = publicacion.Id_Publicacion,
-                Id_Planeta = publicacion.Id_Planeta,
-                Nombre_Planeta = planeta.Nombre,
-                Galaxia = planeta.GalaxiaNav?.Nombre ?? "Desconocida",
-                Precio_Publicado = publicacion.Precio_Publicado,
                 Clase_Planeta = valoracion.Clase_Planeta,
-                Descripcion_Venta = publicacion.Descripcion_Venta,
+                Valor_Total = valoracion.Valor_Total,
+                Precio_Publicado = publicacion.Precio_Publicado,
+                Precio_Minimo = publicacion.Precio_Minimo,
                 Fecha_Vencimiento = publicacion.Fecha_Vencimiento,
-                Fecha_Publicacion = publicacion.Fecha_Publicacion
+                Fecha_Publicacion = publicacion.Fecha_Publicacion,
+                Descripcion_Venta = publicacion.Descripcion_Venta,
+                Activo = publicacion.Activo,
+                Planeta = new PlanetaResumenMercadoDto
+                {
+                    Id_Planeta = planeta.Id_Planeta,
+                    Nombre = planeta.Nombre,
+                    Color1 = planeta.Color1,
+                    Color2 = planeta.Color2,
+                    Color3 = planeta.Color3,
+                    Estado = planeta.Estado?.Nombre ?? "Desconocido",
+                    TipoAtmosfera = planeta.AtmosferaNav?.Nombre,
+                    NivelTecnologico = planeta.Nivel_Tecnologico.ToString()
+                }
             };
         }
 
@@ -193,7 +225,9 @@ namespace Orbital.API.Services
         {
             var publicacion = await _context.MercadoPlanetas
                 .Include(m => m.Planeta)
-                    .ThenInclude(p => p!.GalaxiaNav)
+                    .ThenInclude(p => p!.Estado)
+                .Include(m => m.Planeta)
+                    .ThenInclude(p => p!.AtmosferaNav)
                 .Include(m => m.Valoracion)
                 .FirstOrDefaultAsync(m => m.Id_Publicacion == id && m.Activo);
 
@@ -237,14 +271,25 @@ namespace Orbital.API.Services
             return new MercadoListItemDto
             {
                 Id_Publicacion = publicacion.Id_Publicacion,
-                Id_Planeta = publicacion.Id_Planeta,
-                Nombre_Planeta = publicacion.Planeta?.Nombre ?? "Desconocido",
-                Galaxia = publicacion.Planeta?.GalaxiaNav?.Nombre ?? "Desconocida",
-                Precio_Publicado = publicacion.Precio_Publicado,
                 Clase_Planeta = publicacion.Valoracion?.Clase_Planeta ?? "D",
-                Descripcion_Venta = publicacion.Descripcion_Venta,
+                Valor_Total = publicacion.Valoracion?.Valor_Total ?? 0,
+                Precio_Publicado = publicacion.Precio_Publicado,
+                Precio_Minimo = publicacion.Precio_Minimo,
                 Fecha_Vencimiento = publicacion.Fecha_Vencimiento,
-                Fecha_Publicacion = publicacion.Fecha_Publicacion
+                Fecha_Publicacion = publicacion.Fecha_Publicacion,
+                Descripcion_Venta = publicacion.Descripcion_Venta,
+                Activo = publicacion.Activo,
+                Planeta = new PlanetaResumenMercadoDto
+                {
+                    Id_Planeta = publicacion.Id_Planeta,
+                    Nombre = publicacion.Planeta?.Nombre ?? "Desconocido",
+                    Color1 = publicacion.Planeta?.Color1,
+                    Color2 = publicacion.Planeta?.Color2,
+                    Color3 = publicacion.Planeta?.Color3,
+                    Estado = publicacion.Planeta?.Estado?.Nombre ?? "Desconocido",
+                    TipoAtmosfera = publicacion.Planeta?.AtmosferaNav?.Nombre,
+                    NivelTecnologico = publicacion.Planeta?.Nivel_Tecnologico.ToString() ?? "Desconocido"
+                }
             };
         }
 

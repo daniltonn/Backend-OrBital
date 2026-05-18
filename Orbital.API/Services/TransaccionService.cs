@@ -98,10 +98,12 @@ namespace Orbital.API.Services
                 Id_Transaccion = transaccion.Id_Transaccion,
                 Nombre_Planeta = publicacion.Planeta?.Nombre ?? "Desconocido",
                 Nombre_Comprador = cliente.Nombre,
+                Comprador_Tipo = cliente.Tipo_Cliente,
                 Precio_Final = transaccion.Precio_Final,
+                Metodo_Pago = transaccion.Metodo_Pago,
                 Fecha_Transaccion = transaccion.Fecha_Transaccion,
                 Estado_Transaccion = transaccion.Estado_Transaccion,
-                Metodo_Pago = transaccion.Metodo_Pago
+                Notas = transaccion.Notas
             };
         }
 
@@ -168,20 +170,28 @@ namespace Orbital.API.Services
                 dto.Estado,
                 ipOrigen);
 
-            var nombreComprador = await _context.Clientes
+            var compradorInfo = await _context.Clientes
                 .Where(c => c.Id_Cliente == transaccion.Id_Comprador)
-                .Select(c => c.Nombre)
-                .FirstOrDefaultAsync() ?? transaccion.Id_Comprador.ToString();
+                .Select(c => new { c.Nombre, c.Tipo_Cliente })
+                .FirstOrDefaultAsync();
+
+            var vendedorNombre = await _context.Usuarios
+                .Where(u => u.Id_Usuario == transaccion.Id_Vendedor)
+                .Select(u => u.Nombre)
+                .FirstOrDefaultAsync();
 
             return new TransaccionListItemDto
             {
                 Id_Transaccion = transaccion.Id_Transaccion,
                 Nombre_Planeta = publicacion.Planeta?.Nombre ?? "Desconocido",
-                Nombre_Comprador = nombreComprador,
+                Nombre_Comprador = compradorInfo?.Nombre ?? transaccion.Id_Comprador.ToString(),
+                Comprador_Tipo = compradorInfo?.Tipo_Cliente,
+                Vendedor_Nombre = vendedorNombre,
                 Precio_Final = transaccion.Precio_Final,
+                Metodo_Pago = transaccion.Metodo_Pago,
                 Fecha_Transaccion = transaccion.Fecha_Transaccion,
                 Estado_Transaccion = transaccion.Estado_Transaccion,
-                Metodo_Pago = transaccion.Metodo_Pago
+                Notas = transaccion.Notas
             };
         }
 
@@ -252,47 +262,59 @@ namespace Orbital.API.Services
                 join m in _context.MercadoPlanetas on t.Id_Publicacion equals m.Id_Publicacion
                 join p in _context.Planetas on m.Id_Planeta equals p.Id_Planeta into planetaGroup
                 from planeta in planetaGroup.DefaultIfEmpty()
+                join c in _context.Clientes on t.Id_Comprador equals c.Id_Cliente into compradorGroup
+                from comprador in compradorGroup.DefaultIfEmpty()
+                join u in _context.Usuarios on t.Id_Vendedor equals u.Id_Usuario into vendedorGroup
+                from vendedor in vendedorGroup.DefaultIfEmpty()
                 select new
                 {
-                    Transaccion = t,
-                    NombrePlaneta = planeta != null ? planeta.Nombre : "Desconocido"
+                    t.Id_Transaccion,
+                    t.Id_Publicacion,
+                    t.Id_Comprador,
+                    t.Id_Vendedor,
+                    t.Precio_Final,
+                    t.Fecha_Transaccion,
+                    t.Estado_Transaccion,
+                    t.Metodo_Pago,
+                    t.Notas,
+                    NombrePlaneta = planeta != null ? planeta.Nombre : "Desconocido",
+                    NombreComprador = comprador != null ? comprador.Nombre : t.Id_Comprador.ToString(),
+                    CompradorTipo = comprador != null ? comprador.Tipo_Cliente : null,
+                    NombreVendedor = vendedor != null ? vendedor.Nombre : null
                 }
             ).AsQueryable();
 
             if (!string.IsNullOrEmpty(estado))
-                query = query.Where(x => x.Transaccion.Estado_Transaccion == estado);
+                query = query.Where(x => x.Estado_Transaccion == estado);
 
             if (fechaInicio.HasValue)
-                query = query.Where(x => x.Transaccion.Fecha_Transaccion >= fechaInicio.Value);
+                query = query.Where(x => x.Fecha_Transaccion >= fechaInicio.Value);
 
             if (fechaFin.HasValue)
-                query = query.Where(x => x.Transaccion.Fecha_Transaccion <= fechaFin.Value);
+                query = query.Where(x => x.Fecha_Transaccion <= fechaFin.Value);
 
             if (idComprador.HasValue)
-                query = query.Where(x => x.Transaccion.Id_Comprador == idComprador.Value);
+                query = query.Where(x => x.Id_Comprador == idComprador.Value);
 
             if (idPublicacion.HasValue)
-                query = query.Where(x => x.Transaccion.Id_Publicacion == idPublicacion.Value);
+                query = query.Where(x => x.Id_Publicacion == idPublicacion.Value);
 
             var resultados = await query
-                .OrderByDescending(x => x.Transaccion.Fecha_Transaccion)
+                .OrderByDescending(x => x.Fecha_Transaccion)
                 .ToListAsync();
-
-            var idCompradoresList = resultados.Select(x => x.Transaccion.Id_Comprador).Distinct().ToList();
-            var compradores = await _context.Clientes
-                .Where(c => idCompradoresList.Contains(c.Id_Cliente))
-                .ToDictionaryAsync(c => c.Id_Cliente, c => c.Nombre);
 
             return resultados.Select(x => new TransaccionListItemDto
             {
-                Id_Transaccion = x.Transaccion.Id_Transaccion,
+                Id_Transaccion = x.Id_Transaccion,
                 Nombre_Planeta = x.NombrePlaneta,
-                Nombre_Comprador = compradores.TryGetValue(x.Transaccion.Id_Comprador, out var nombre)
-                    ? nombre : x.Transaccion.Id_Comprador.ToString(),
-                Precio_Final = x.Transaccion.Precio_Final,
-                Fecha_Transaccion = x.Transaccion.Fecha_Transaccion,
-                Estado_Transaccion = x.Transaccion.Estado_Transaccion,
-                Metodo_Pago = x.Transaccion.Metodo_Pago
+                Nombre_Comprador = x.NombreComprador,
+                Comprador_Tipo = x.CompradorTipo,
+                Vendedor_Nombre = x.NombreVendedor,
+                Precio_Final = x.Precio_Final,
+                Metodo_Pago = x.Metodo_Pago,
+                Fecha_Transaccion = x.Fecha_Transaccion,
+                Estado_Transaccion = x.Estado_Transaccion,
+                Notas = x.Notas
             }).ToList();
         }
 
